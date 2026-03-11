@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thomas Josse — BTS SIO SISR</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14; --surface: #0e1521; --surface2: #141d2e;
+    --accent: #00d4ff; --accent2: #7b4fff; --accent3: #00ff9d;
+    --text: #e8f0fe; --muted: #6b7a99; --border: rgba(0,212,255,0.15);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow-x: hidden; }
+
+  /* SCROLL PROGRESS */
+  #scroll-progress { position: fixed; top: 0; left: 0; height: 3px; z-index: 200; background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3)); width: 0%; transition: width 0.1s linear; }
+
+  #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: 0.35; }
+  .cursor-glow { position: fixed; width: 400px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+  /* NAV */
+  nav { position: fixed; top: 3px; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 4rem; background: rgba(8,12,20,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+  .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--accent); letter-spacing: -0.02em; }
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; transition: color 0.3s; }
+  .nav-links a:hover { color: var(--accent); }
+  .nav-hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; background: none; border: none; }
+  .nav-hamburger span { width: 24px; height: 2px; background: var(--accent); border-radius: 2px; transition: all 0.3s; display: block; }
+  .nav-hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+  .nav-hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+  .nav-mobile { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(8,12,20,0.97); z-index: 99; flex-direction: column; align-items: center; justify-content: center; gap: 2.5rem; }
+  .nav-mobile.open { display: flex; }
+  .nav-mobile a { color: var(--text); text-decoration: none; font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 700; transition: color 0.3s; }
+  .nav-mobile a:hover { color: var(--accent); }
+
+  /* HERO */
+  #hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 8rem 10vw 4rem; position: relative; z-index: 1; }
+  .hero-label { display: inline-flex; align-items: center; gap: 0.6rem; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent3); margin-bottom: 2rem; opacity: 0; animation: fadeUp 0.8s 0.2s forwards; }
+  .hero-label::before { content: ''; width: 30px; height: 1px; background: var(--accent3); }
+  .hero-content { display: flex; align-items: center; gap: 5rem; }
+  .hero-left { flex: 1; }
+
+  /* PHOTO */
+  .hero-photo { flex-shrink: 0; width: 220px; height: 220px; border-radius: 50%; border: 2px solid var(--accent); box-shadow: 0 0 40px rgba(0,212,255,0.2), 0 0 80px rgba(123,79,255,0.1); overflow: hidden; opacity: 0; animation: fadeUp 0.8s 0.3s forwards; }
+  .hero-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-photo-placeholder { width: 100%; height: 100%; background: linear-gradient(135deg, var(--surface2), var(--surface)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; color: var(--muted); font-size: 0.65rem; letter-spacing: 0.1em; text-align: center; padding: 1rem; }
+  .hero-photo-placeholder svg { opacity: 0.3; }
+
+  .hero-title { font-family: 'Syne', sans-serif; font-size: clamp(3rem, 8vw, 7rem); font-weight: 800; line-height: 0.95; letter-spacing: -0.04em; margin-bottom: 1.5rem; opacity: 0; animation: fadeUp 0.8s 0.4s forwards; }
+  .hero-title .gradient { display: block; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero-desc { font-size: 0.92rem; color: var(--muted); line-height: 1.9; max-width: 550px; margin-bottom: 2.5rem; opacity: 0; animation: fadeUp 0.8s 0.6s forwards; }
+  .hero-actions { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap; opacity: 0; animation: fadeUp 0.8s 0.8s forwards; }
+
+  .btn-primary { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.85rem 2rem; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.05em; text-decoration: none; border-radius: 4px; transition: transform 0.2s, box-shadow 0.2s; border: none; cursor: pointer; }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,212,255,0.3); }
+  .btn-copy { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.85rem 2rem; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.05em; border-radius: 4px; cursor: pointer; transition: transform 0.2s, background 0.2s; position: relative; font-family: 'JetBrains Mono', monospace; }
+  .btn-copy:hover { transform: translateY(-2px); background: rgba(0,212,255,0.08); }
+  .btn-copy .copy-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--accent3); color: var(--bg); font-size: 0.7rem; font-weight: 700; padding: 0.3rem 0.8rem; border-radius: 4px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .btn-copy .copy-tooltip.show { opacity: 1; }
+  .btn-cv { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.85rem 2rem; background: transparent; border: 1px solid rgba(123,79,255,0.5); color: var(--accent2); font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.05em; text-decoration: none; border-radius: 4px; transition: transform 0.2s, background 0.2s; }
+  .btn-cv:hover { transform: translateY(-2px); background: rgba(123,79,255,0.08); }
+  .btn-ghost { color: var(--muted); font-size: 0.8rem; text-decoration: none; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); padding-bottom: 2px; transition: color 0.3s; }
+  .btn-ghost:hover { color: var(--text); }
+
+  .hero-scroll { position: absolute; bottom: 3rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; animation: bounce 2s infinite; }
+  .hero-scroll::after { content: ''; width: 1px; height: 50px; background: linear-gradient(to bottom, var(--accent), transparent); }
+
+  /* SECTIONS */
+  section { position: relative; z-index: 1; padding: 7rem 10vw; }
+  .section-tag { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.8rem; }
+  .section-tag::after { content: ''; flex: 1; max-width: 60px; height: 1px; background: var(--accent); opacity: 0.5; }
+  .section-title { font-family: 'Syne', sans-serif; font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 3.5rem; }
+
+  /* SCROLL REVEAL */
+  .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s, transform 0.7s; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-left { opacity: 0; transform: translateX(-30px); transition: opacity 0.7s, transform 0.7s; }
+  .reveal-left.visible { opacity: 1; transform: translateX(0); }
+
+  /* ABOUT */
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: start; }
+  .about-text p { color: var(--muted); line-height: 1.9; font-size: 0.87rem; margin-bottom: 1.2rem; }
+  .about-text p strong { color: var(--text); font-weight: 500; }
+  .about-right { display: flex; flex-direction: column; gap: 1.5rem; }
+  .about-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.4rem; transition: border-color 0.3s, transform 0.3s; }
+  .stat-card:hover { border-color: var(--accent); transform: translateY(-4px); }
+  .stat-number { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .stat-label { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.3rem; }
+  .qualites-grid { display: flex; flex-wrap: wrap; gap: 1rem; }
+  .qualite-badge { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; color: var(--text); transition: border-color 0.3s, transform 0.2s; }
+  .qualite-badge:hover { border-color: var(--accent3); transform: translateY(-3px); }
+  .qualite-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent3); flex-shrink: 0; }
+
+  /* SKILLS */
+  #skills { background: linear-gradient(180deg, transparent, var(--surface) 20%, var(--surface) 80%, transparent); }
+  .skills-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; }
+  .skill-category { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; position: relative; overflow: hidden; transition: transform 0.3s, border-color 0.3s; }
+  .skill-category::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transform: scaleX(0); transition: transform 0.4s; transform-origin: left; }
+  .skill-category:hover::before { transform: scaleX(1); }
+  .skill-category:hover { transform: translateY(-5px); border-color: rgba(0,212,255,0.3); }
+  .skill-cat-icon { font-size: 1.8rem; margin-bottom: 1rem; }
+  .skill-cat-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 1.2rem; }
+  .skill-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .skill-tag { font-size: 0.7rem; padding: 0.35rem 0.8rem; background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); border-radius: 3px; color: var(--accent); letter-spacing: 0.05em; transition: background 0.2s; }
+  .skill-tag:hover { background: rgba(0,212,255,0.15); }
+  .skill-tag.purple { color: var(--accent2); background: rgba(123,79,255,0.08); border-color: rgba(123,79,255,0.2); }
+  .skill-tag.green { color: var(--accent3); background: rgba(0,255,157,0.08); border-color: rgba(0,255,157,0.2); }
+
+  /* FORMATIONS */
+  .formations-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+  .formation-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 2rem; transition: border-color 0.3s, transform 0.3s; }
+  .formation-card:hover { border-color: rgba(0,212,255,0.4); transform: translateY(-5px); }
+  .formation-date { font-size: 0.68rem; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.8rem; }
+  .formation-title { font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; line-height: 1.3; }
+  .formation-school { font-size: 0.78rem; color: var(--muted); }
+
+  /* TIMELINE */
+  .timeline { position: relative; padding-left: 3rem; }
+  .timeline::before { content: ''; position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 1px; background: linear-gradient(to bottom, var(--accent), var(--accent2), transparent); }
+  .timeline-item { position: relative; margin-bottom: 3rem; opacity: 0; transform: translateX(-20px); transition: opacity 0.6s, transform 0.6s; }
+  .timeline-item.visible { opacity: 1; transform: translateX(0); }
+  .timeline-dot { position: absolute; left: -2.6rem; top: 0.4rem; width: 12px; height: 12px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 15px var(--accent); }
+  .timeline-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 2rem 2.5rem; transition: border-color 0.3s; }
+  .timeline-card:hover { border-color: rgba(0,212,255,0.4); }
+  .timeline-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+  .timeline-company { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; }
+  .timeline-role { font-size: 0.78rem; color: var(--accent); margin-top: 0.2rem; }
+  .timeline-date { font-size: 0.68rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); padding: 0.3rem 0.8rem; border-radius: 3px; letter-spacing: 0.1em; white-space: nowrap; }
+  .timeline-desc { font-size: 0.83rem; color: var(--muted); line-height: 1.8; margin-bottom: 1.2rem; }
+  .timeline-desc ul { padding-left: 1.2rem; }
+  .timeline-desc li { margin-bottom: 0.4rem; }
+  .timeline-techs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tech-pill { font-size: 0.68rem; padding: 0.25rem 0.7rem; background: rgba(123,79,255,0.12); border: 1px solid rgba(123,79,255,0.25); border-radius: 20px; color: var(--accent2); }
+
+  /* CONTACT */
+  #contact { text-align: center; }
+  .contact-inner { max-width: 600px; margin: 0 auto; }
+  .contact-inner .section-tag { justify-content: center; }
+  .contact-inner .section-tag::after { display: none; }
+  .contact-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.8; margin-bottom: 3rem; }
+  .contact-links { display: flex; justify-content: center; gap: 1.2rem; flex-wrap: wrap; }
+  .contact-link { display: flex; align-items: center; gap: 0.6rem; padding: 0.8rem 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; font-size: 0.78rem; letter-spacing: 0.03em; transition: border-color 0.3s, transform 0.2s, background 0.3s; cursor: pointer; font-family: 'JetBrains Mono', monospace; }
+  .contact-link:hover { border-color: var(--accent); background: rgba(0,212,255,0.06); transform: translateY(-3px); }
+
+  footer { position: relative; z-index: 1; text-align: center; padding: 2rem; border-top: 1px solid var(--border); font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(8px); } }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--accent2); border-radius: 2px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    section { padding: 5rem 6vw; }
+    #hero { padding: 7rem 6vw 4rem; }
+    .hero-content { flex-direction: column-reverse; gap: 2rem; align-items: flex-start; }
+    .hero-photo { width: 130px; height: 130px; }
+    .about-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+    .skills-grid { grid-template-columns: 1fr; }
+    .formations-grid { grid-template-columns: 1fr; }
+    .hero-actions { gap: 0.8rem; }
+  }
+  @media (max-width: 500px) {
+    .hero-title { font-size: 3rem; }
+    .about-stats { grid-template-columns: 1fr 1fr; }
+    .contact-links { flex-direction: column; align-items: stretch; }
+    .btn-primary, .btn-copy, .btn-cv { font-size: 0.78rem; padding: 0.75rem 1.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="scroll-progress"></div>
+<div class="cursor-glow" id="cursorGlow"></div>
+<canvas id="bg-canvas"></canvas>
+
+<!-- MOBILE NAV -->
+<div class="nav-mobile" id="navMobile">
+  <a href="#about" onclick="closeMenu()">À propos</a>
+  <a href="#skills" onclick="closeMenu()">Compétences</a>
+  <a href="#formations" onclick="closeMenu()">Formation</a>
+  <a href="#experience" onclick="closeMenu()">Expérience</a>
+  <a href="#contact" onclick="closeMenu()">Contact</a>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">T. Josse</div>
+  <ul class="nav-links">
+    <li><a href="#about">À propos</a></li>
+    <li><a href="#skills">Compétences</a></li>
+    <li><a href="#formations">Formation</a></li>
+    <li><a href="#experience">Expérience</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <span class="hero-label">Disponible — BTS SIO SISR 2025</span>
+  <div class="hero-content">
+    <div class="hero-left">
+      <h1 class="hero-title">
+        Thomas
+        <span class="gradient">Josse</span>
+      </h1>
+      <p class="hero-desc">
+        Administrateur Systèmes & Réseaux, spécialité SISR. Passionné par l'infrastructure réseau, la virtualisation et la sécurité des systèmes. Prêt à débuter ma carrière dans l'informatique.
+      </p>
+      <div class="hero-actions">
+        <button class="btn-copy" onclick="copyEmail(this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Me contacter
+          <span class="copy-tooltip">✓ Email copié !</span>
+        </button>
+        <a href="Thomas_Josse_CV.pdf" download class="btn-cv">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Télécharger mon CV
+        </a>
+        <a href="#experience" class="btn-ghost">Voir mon expérience →</a>
+      </div>
+    </div>
+    <div class="hero-photo">
+      <img src="photo.jpg" alt="Thomas Josse">
+    </div>
+  </div>
+  <div class="hero-scroll">scroll</div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="about-grid">
+    <div class="about-text reveal-left">
+      <div class="section-tag">01 — À propos</div>
+      <h2 class="section-title">Qui<br>suis-je ?</h2>
+      <p>Je m'appelle Thomas, diplômé en <strong>BTS SIO option SISR</strong> au Lycée Privé Saint-Rémi. Curieux et déterminé, je me suis formé aux métiers de l'informatique avec un intérêt marqué pour la <strong>cybersécurité, les systèmes et les réseaux</strong>.</p>
+      <p>J'apprécie particulièrement <strong>résoudre des problèmes techniques</strong>, comprendre les infrastructures réseau et contribuer à améliorer l'efficacité des systèmes. Mes stages m'ont permis d'intervenir sur des environnements professionnels réels.</p>
+      <p>En dehors de l'informatique, je suis passionné par le <strong>sport</strong> (badminton, football, javelot) et les <strong>jeux vidéo</strong>. Mon objectif : débuter ma carrière dans l'informatique dans un environnement stimulant où je peux apprendre et évoluer rapidement.</p>
+      <div class="qualites-grid" style="margin-top:1.8rem;">
+        <div class="qualite-badge"><span class="dot"></span>Volontaire</div>
+        <div class="qualite-badge"><span class="dot"></span>Polyvalent</div>
+        <div class="qualite-badge"><span class="dot"></span>Esprit d'équipe</div>
+        <div class="qualite-badge"><span class="dot"></span>Anglais</div>
+      </div>
+    </div>
+    <div class="about-right reveal">
+      <div class="about-stats">
+        <div class="stat-card"><div class="stat-number">2</div><div class="stat-label">Stages réalisés</div></div>
+        <div class="stat-card"><div class="stat-number">BTS</div><div class="stat-label">SIO SISR — 2025</div></div>
+        <div class="stat-card"><div class="stat-number">3+</div><div class="stat-label">Mois d'expérience</div></div>
+        <div class="stat-card"><div class="stat-number">🚀</div><div class="stat-label">Disponible dès maintenant</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section id="skills">
+  <div class="section-tag reveal">02 — Compétences</div>
+  <h2 class="section-title reveal">Stack<br>technique</h2>
+  <div class="skills-grid">
+    <div class="skill-category reveal" style="transition-delay:0.1s">
+      <div class="skill-cat-icon">🖥️</div>
+      <div class="skill-cat-title">Systèmes</div>
+      <div class="skill-tags">
+        <span class="skill-tag">Linux / Ubuntu</span><span class="skill-tag">Windows Server</span><span class="skill-tag">IDRAC</span><span class="skill-tag">ESXi</span><span class="skill-tag">Active Directory</span><span class="skill-tag">DNS</span>
+      </div>
+    </div>
+    <div class="skill-category reveal" style="transition-delay:0.2s">
+      <div class="skill-cat-icon">🌐</div>
+      <div class="skill-cat-title">Réseau</div>
+      <div class="skill-tags">
+        <span class="skill-tag purple">Cisco Packet Tracer</span><span class="skill-tag purple">Wireshark</span><span class="skill-tag purple">Switches / Routeurs</span><span class="skill-tag purple">VLAN</span><span class="skill-tag purple">PuTTY</span><span class="skill-tag purple">WiFi / VTI</span>
+      </div>
+    </div>
+    <div class="skill-category reveal" style="transition-delay:0.3s">
+      <div class="skill-cat-icon">☁️</div>
+      <div class="skill-cat-title">Virtualisation & Supervision</div>
+      <div class="skill-tags">
+        <span class="skill-tag green">VirtualBox</span><span class="skill-tag green">VMware</span><span class="skill-tag green">Centreon</span><span class="skill-tag green">Supervision réseau</span>
+      </div>
+    </div>
+    <div class="skill-category reveal" style="transition-delay:0.4s">
+      <div class="skill-cat-icon">🔐</div>
+      <div class="skill-cat-title">Sécurité & Administration</div>
+      <div class="skill-tags">
+        <span class="skill-tag">Sécurité réseau</span><span class="skill-tag">Gestion MAC/DNS</span><span class="skill-tag">Sensibilisation utilisateurs</span><span class="skill-tag">Ligne de commandes</span>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:3.5rem;" class="reveal">
+    <div class="section-tag" style="margin-bottom:1.5rem;">Langues</div>
+    <div style="display:flex;flex-direction:column;gap:1.2rem;max-width:500px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="font-size:0.82rem;color:var(--text);">🇫🇷 Français — Langue natale</span><span style="font-size:0.75rem;color:var(--accent);">100%</span></div>
+        <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;"><div style="width:100%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="font-size:0.82rem;color:var(--text);">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Anglais — Études & professionnel</span><span style="font-size:0.75rem;color:var(--accent);">65%</span></div>
+        <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;"><div style="width:65%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="font-size:0.82rem;color:var(--text);">🇩🇪 Allemand — Collège / Lycée</span><span style="font-size:0.75rem;color:var(--accent);">15%</span></div>
+        <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;"><div style="width:15%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FORMATIONS -->
+<section id="formations">
+  <div class="section-tag reveal">03 — Formation</div>
+  <h2 class="section-title reveal">Mon<br>parcours</h2>
+  <div class="formations-grid">
+    <div class="formation-card reveal" style="transition-delay:0.1s">
+      <div class="formation-date">2016 — 2020</div>
+      <div class="formation-title">Collège Jean Moulin</div>
+      <div class="formation-school">Diplôme National du Brevet</div>
+    </div>
+    <div class="formation-card reveal" style="transition-delay:0.2s">
+      <div class="formation-date">2020 — 2023</div>
+      <div class="formation-title">Baccalauréat STI2D</div>
+      <div class="formation-school">Sciences Technologiques de l'Industrie et du Développement durable<br>Lycée Polyvalent Lamarck</div>
+    </div>
+    <div class="formation-card reveal" style="transition-delay:0.3s">
+      <div class="formation-date">2023 — 2025</div>
+      <div class="formation-title">BTS SIO — option SISR</div>
+      <div class="formation-school">Services Informatiques aux Organisations<br>Solution d'Infrastructure Système et Réseau<br>Lycée Privé Saint-Rémi</div>
+    </div>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section id="experience">
+  <div class="section-tag reveal">04 — Expérience</div>
+  <h2 class="section-title reveal">Mes<br>expériences</h2>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <div><div class="timeline-company">Direction Générale Gueudet 1880</div><div class="timeline-role">Administrateur Systèmes et Réseaux — Stage</div></div>
+          <div class="timeline-date">Jan 2025 — Mars 2025</div>
+        </div>
+        <div class="timeline-desc"><ul>
+          <li>Supervision réseau via Centreon : vérification des équipements, ajout de VTI manquants</li>
+          <li>Administration Active Directory : ajout de numéros de série et adresses MAC</li>
+          <li>Installation et configuration de serveurs Linux, IDRAC, ESXi</li>
+          <li>Configuration de switches via PuTTY et gestion de bornes WiFi</li>
+          <li>Gestion des entrées DNS</li>
+          <li>Veille à la sécurité du réseau et sensibilisation des utilisateurs aux bonnes pratiques</li>
+        </ul></div>
+        <div class="timeline-techs"><span class="tech-pill">Centreon</span><span class="tech-pill">Active Directory</span><span class="tech-pill">Linux</span><span class="tech-pill">ESXi</span><span class="tech-pill">PuTTY</span><span class="tech-pill">DNS</span></div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <div><div class="timeline-company">Conseil Départemental de la Somme</div><div class="timeline-role">Administrateur Systèmes et Réseaux — Stage</div></div>
+          <div class="timeline-date">Mai 2024 — Juin 2024</div>
+        </div>
+        <div class="timeline-desc"><ul>
+          <li>Configuration et dépannage de routeurs, commutateurs et autres équipements réseau</li>
+          <li>Dépannage des problèmes de connexion et de performance pour les utilisateurs finaux</li>
+          <li>Veille à la sécurité du réseau, contrôles et sensibilisation des utilisateurs</li>
+        </ul></div>
+        <div class="timeline-techs"><span class="tech-pill">Routeurs</span><span class="tech-pill">Switches</span><span class="tech-pill">Sécurité réseau</span><span class="tech-pill">Support utilisateurs</span></div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:var(--muted);box-shadow:none;"></div>
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <div><div class="timeline-company">Intermarché Albert</div><div class="timeline-role">Préparateur de commande — Drive</div></div>
+          <div class="timeline-date">Nov 2025</div>
+        </div>
+        <div class="timeline-desc">Préparation de commandes drive. Expérience de rigueur, organisation et travail en équipe en environnement logistique.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="contact-inner reveal">
+    <div class="section-tag">05 — Contact</div>
+    <h2 class="section-title">Travaillons<br>ensemble</h2>
+    <p class="contact-desc">Diplômé en BTS SIO, je cherche à débuter ma carrière dans l'informatique et à mettre mes compétences au service d'une équipe. N'hésitez pas à me contacter !</p>
+    <div class="contact-links">
+      <button class="contact-link" onclick="copyEmail(this)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <span class="email-label"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ea9e8285878b99808599998fdbd2dad8aa8d878b8386c4898587">[email&#160;protected]</a></span>
+      </button>
+      <a href="tel:0624310928" class="contact-link">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.72A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>
+        06 24 31 09 28
+      </a>
+      <a href="https://www.linkedin.com/in/thomas-josse-155507290/" target="_blank" class="contact-link">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+        LinkedIn
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer><p>© 2025 — Thomas Josse — Administrateur Systèmes & Réseaux ⚡</p></footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  // Scroll progress
+  const bar = document.getElementById('scroll-progress');
+  window.addEventListener('scroll', () => {
+    bar.style.width = (window.scrollY / (document.body.scrollHeight - window.innerHeight) * 100) + '%';
+  });
+
+  // Cursor glow
+  const glow = document.getElementById('cursorGlow');
+  document.addEventListener('mousemove', e => { glow.style.left=(e.clientX-200)+'px'; glow.style.top=(e.clientY-200)+'px'; });
+
+  // Mobile menu
+  function toggleMenu() { document.getElementById('hamburger').classList.toggle('open'); document.getElementById('navMobile').classList.toggle('open'); }
+  function closeMenu() { document.getElementById('hamburger').classList.remove('open'); document.getElementById('navMobile').classList.remove('open'); }
+
+  // Copy email
+  function copyEmail(btn) {
+    navigator.clipboard.writeText('thomasjosse1802@gmail.com').then(() => {
+      const tooltip = btn.querySelector('.copy-tooltip');
+      if (tooltip) { tooltip.classList.add('show'); setTimeout(() => tooltip.classList.remove('show'), 2000); }
+      const label = btn.querySelector('.email-label');
+      if (label) {
+        const orig = label.textContent; label.textContent = '✓ Email copié !';
+        btn.style.borderColor='var(--accent3)'; btn.style.color='var(--accent3)';
+        setTimeout(() => { label.textContent=orig; btn.style.borderColor=''; btn.style.color=''; }, 2000);
+      }
+    });
+  }
+
+  // Background canvas
+  const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => { canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
+  const particles = Array.from({length:80}, () => ({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-0.5)*0.4, vy:(Math.random()-0.5)*0.4, size:Math.random()*1.5+0.3, opacity:Math.random()*0.6+0.1 }));
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p => { p.x+=p.vx; p.y+=p.vy; if(p.x<0||p.x>canvas.width)p.vx*=-1; if(p.y<0||p.y>canvas.height)p.vy*=-1; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle=`rgba(0,212,255,${p.opacity})`; ctx.fill(); });
+    particles.forEach((a,i) => { particles.slice(i+1).forEach(b => { const d=Math.hypot(a.x-b.x,a.y-b.y); if(d<120){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.strokeStyle=`rgba(0,212,255,${0.12*(1-d/120)})`; ctx.lineWidth=0.5; ctx.stroke(); } }); });
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  // Intersection observers
+  const timelineObs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.15});
+  document.querySelectorAll('.timeline-item').forEach(i => timelineObs.observe(i));
+  const revealObs = new Int
