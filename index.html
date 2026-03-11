@@ -463,4 +463,8 @@
   // Intersection observers
   const timelineObs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.15});
   document.querySelectorAll('.timeline-item').forEach(i => timelineObs.observe(i));
-  const revealObs = new Int
+  const revealObs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.08});
+  document.querySelectorAll('.reveal, .reveal-left').forEach(el => revealObs.observe(el));
+</script>
+</body>
+</html>
